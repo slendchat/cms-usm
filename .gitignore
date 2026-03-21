@@ -1,0 +1,7 @@
+# secrets
+.env
+#Wordpress files
+wordpress/wordpress/*
+#my own documents
+infra.md
+

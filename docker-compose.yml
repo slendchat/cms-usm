@@ -1,0 +1,47 @@
+services:
+  db:
+    image: mariadb:11.4
+    container_name: wp_lab03
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./wordpress/sql:/docker-entrypoint-initdb.d
+    networks:
+      - wp_dev_net
+
+  wordpress:
+    image: wordpress:6.8.3-php8.3-apache
+    container_name: wp_app
+    restart: unless-stopped
+    depends_on:
+      - db
+    env_file:
+      - .env
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_NAME: ${DB_NAME}
+      WORDPRESS_DB_USER: ${DB_USER}
+      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
+      WORDPRESS_TABLE_PREFIX: ${WORDPRESS_TABLE_PREFIX}
+      WORDPRESS_DEBUG: ${WP_DEBUG}
+    ports:
+      - "${WP_HTTP_PORT}:80"
+    volumes:
+      - ./wordpress/wordpress:/var/www/html
+    networks:
+      - wp_dev_net
+
+volumes:
+  db_data:
+    name: wp_db_data
+
+networks:
+  wp_dev_net:
+    driver: bridge
