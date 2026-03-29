@@ -15,7 +15,7 @@
 ## Инструкции по запуску проекта
 1. Перейти в корень проекта:
 ```powershell
-cd d:\Arthurs\USM\cms-usm
+cd cms-usm
 ```
 
 2. Убедиться, что создан файл `.env` (если нет, скопировать из примера):
@@ -141,10 +141,3 @@ WP_DEBUG=true
 - Template Files (WordPress): https://developer.wordpress.org/themes/basics/template-files/
 - Including CSS & JavaScript (`wp_enqueue_style`): https://developer.wordpress.org/themes/basics/including-css-javascript/
 - Template Tags (`get_header`, `get_footer`, `get_sidebar`, `comments_template`): https://developer.wordpress.org/themes/basics/template-tags/
-
-## Дополнительные важные аспекты
-- Отладка WordPress в данном Docker-окружении управляется через `WORDPRESS_DEBUG` (переменные окружения), а не жестко прописанным `define('WP_DEBUG', true);`.
-- Для полного сброса БД используется:
-```powershell
-docker compose down -v
-```
