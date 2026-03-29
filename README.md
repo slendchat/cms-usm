@@ -7,7 +7,7 @@
 - lab01: [Будущее_CMS_Headless‑подход,_облачные_интеграции_и_AI.pdf](docs/Будущее_CMS_Headless‑подход,_облачные_интеграции_и_AI.pdf)
 - lab02: [mamaliga-artur_cms_lab02.docx](docs/mamaliga-artur_cms_lab02.docx)
 - lab03: [mamaliga-artur_cms_lab03.md](docs/mamaliga-artur_cms_lab03.md)
-- lab05: [mamaliga-artur_cms_lab04.md](docs/mamaliga-artur_cms_lab04.md)
+- lab04: [mamaliga-artur_cms_lab04.md](docs/mamaliga-artur_cms_lab04.md)
 
 ## Структура репозитория
 
