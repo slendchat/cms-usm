@@ -316,6 +316,103 @@ function usm_notes_render_reminder_date_column( $column, $post_id ) {
 	echo $value ? esc_html( $value ) : '—';
 }
 
+/**
+ * Шорткод [usm_notes priority="slug" before_date="YYYY-MM-DD"].
+ *
+ * @param array $atts Атрибуты шорткода.
+ * @return string
+ */
+function usm_notes_shortcode( $atts ) {
+	$atts = shortcode_atts(
+		array(
+			'priority'    => '',
+			'before_date' => '',
+		),
+		$atts,
+		'usm_notes'
+	);
+
+	$priority_slug = sanitize_title( $atts['priority'] );
+	$before_date   = sanitize_text_field( $atts['before_date'] );
+
+	$args = array(
+		'post_type'      => 'notes',
+		'post_status'    => 'any',
+		'posts_per_page' => -1,
+		'meta_key'       => '_usm_notes_reminder_date',
+		'meta_type'      => 'DATE',
+		'orderby'        => array(
+			'meta_value' => 'ASC',
+			'date'       => 'DESC',
+		),
+	);
+
+	if ( '' !== $priority_slug ) {
+		$args['tax_query'] = array(
+			array(
+				'taxonomy' => 'priority',
+				'field'    => 'slug',
+				'terms'    => $priority_slug,
+			),
+		);
+	}
+
+	if ( '' !== $before_date && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $before_date ) ) {
+		$args['meta_query'] = array(
+			array(
+				'key'     => '_usm_notes_reminder_date',
+				'value'   => $before_date,
+				'compare' => '<=',
+				'type'    => 'DATE',
+			),
+		);
+	}
+
+	$query = new WP_Query( $args );
+	ob_start();
+
+	echo '<style>
+.usm-notes-list{list-style:none;padding:0;margin:0;display:grid;gap:12px}
+.usm-notes-item{border:1px solid #dcdcde;border-radius:8px;padding:12px;background:#fff}
+.usm-notes-title{margin:0 0 8px;font-size:18px}
+.usm-notes-meta{margin:0 0 8px;color:#50575e;font-size:14px}
+.usm-notes-excerpt{margin:0;color:#1d2327}
+.usm-notes-empty{padding:12px;border:1px dashed #c3c4c7;border-radius:8px}
+</style>';
+
+	if ( ! $query->have_posts() ) {
+		echo '<p class="usm-notes-empty">Нет заметок с заданными параметрами</p>';
+		return (string) ob_get_clean();
+	}
+
+	echo '<ul class="usm-notes-list">';
+	while ( $query->have_posts() ) {
+		$query->the_post();
+
+		$post_id       = get_the_ID();
+		$title         = get_the_title();
+		$excerpt       = get_the_excerpt();
+		$reminder_date = get_post_meta( $post_id, '_usm_notes_reminder_date', true );
+		$terms         = get_the_terms( $post_id, 'priority' );
+		$priority_text = 'Не указан';
+
+		if ( is_array( $terms ) && ! empty( $terms ) ) {
+			$names = wp_list_pluck( $terms, 'name' );
+			$priority_text = implode( ', ', array_map( 'esc_html', $names ) );
+		}
+
+		echo '<li class="usm-notes-item">';
+		echo '<h3 class="usm-notes-title">' . esc_html( $title ) . '</h3>';
+		echo '<p class="usm-notes-meta"><strong>Дата:</strong> ' . esc_html( $reminder_date ? $reminder_date : 'Не указана' ) . ' | <strong>Приоритет:</strong> ' . $priority_text . '</p>';
+		echo '<p class="usm-notes-excerpt">' . esc_html( $excerpt ) . '</p>';
+		echo '</li>';
+	}
+	echo '</ul>';
+
+	wp_reset_postdata();
+	return (string) ob_get_clean();
+}
+
 // Регистрирует CPT и таксономию.
 add_action( 'init', 'usm_notes_register_cpt' );
 add_action( 'init', 'usm_notes_register_priority_taxonomy' );
@@ -327,3 +424,4 @@ add_action( 'save_post', 'usm_notes_save_reminder_date_meta', 10, 2 );
 add_action( 'admin_notices', 'usm_notes_show_admin_error_notice' );
 add_filter( 'manage_notes_posts_columns', 'usm_notes_add_reminder_date_column' );
 add_action( 'manage_notes_posts_custom_column', 'usm_notes_render_reminder_date_column', 10, 2 );
+add_shortcode( 'usm_notes', 'usm_notes_shortcode' );
