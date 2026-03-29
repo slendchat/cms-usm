@@ -144,9 +144,9 @@ function usm_notes_maybe_seed_priority_terms() {
 
 /**
  * Логика активации:
- * 1) регистрируем CPT и таксономию в текущем запросе;
- * 2) добавляем стартовые термины приоритета;
- * 3) обновляем rewrite rules.
+ * регистрирует CPT и таксономию в текущем запросе
+ * добавляет стартовые термины приоритета
+ * обновляет rewrite rules.
  *
  * @return void
  */
@@ -159,7 +159,171 @@ function usm_notes_activate_plugin() {
 
 register_activation_hook( __FILE__, 'usm_notes_activate_plugin' );
 
+/**
+ * Метабокс "Дата напоминания" в редактор заметки.
+ *
+ * @return void
+ */
+function usm_notes_add_reminder_date_meta_box() {
+	add_meta_box(
+		'usm_notes_reminder_date',
+		'Дата напоминания',
+		'usm_notes_render_reminder_date_meta_box',
+		'notes',
+		'side',
+		'default'
+	);
+}
+
+/**
+ * Выводит поле даты в метабоксе.
+ *
+ * @param WP_Post $post Текущая запись.
+ * @return void
+ */
+function usm_notes_render_reminder_date_meta_box( $post ) {
+	$value     = get_post_meta( $post->ID, '_usm_notes_reminder_date', true );
+	$today     = current_time( 'Y-m-d' );
+	$field_id  = 'usm_notes_reminder_date';
+
+	wp_nonce_field( 'usm_notes_save_reminder_date', 'usm_notes_reminder_date_nonce' );
+
+	echo '<label for="' . esc_attr( $field_id ) . '">Выберите дату:</label>';
+	echo '<input type="date" id="' . esc_attr( $field_id ) . '" name="usm_notes_reminder_date" value="' . esc_attr( $value ) . '" min="' . esc_attr( $today ) . '" required style="width:100%;margin-top:8px;">';
+}
+
+/**
+ * Сохраняет дату напоминания при сохранении заметки.
+ *
+ * @param int     $post_id ID записи.
+ * @param WP_Post $post    Объект записи.
+ * @return void
+ */
+function usm_notes_save_reminder_date_meta( $post_id, $post ) {
+	if ( 'notes' !== $post->post_type ) {
+		return;
+	}
+
+	if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+		return;
+	}
+
+	if ( wp_is_post_autosave( $post_id ) || wp_is_post_revision( $post_id ) ) {
+		return;
+	}
+
+	if ( ! current_user_can( 'edit_post', $post_id ) ) {
+		return;
+	}
+
+	if (
+		! isset( $_POST['usm_notes_reminder_date_nonce'] ) ||
+		! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['usm_notes_reminder_date_nonce'] ) ), 'usm_notes_save_reminder_date' )
+	) {
+		return;
+	}
+
+	$raw_date = isset( $_POST['usm_notes_reminder_date'] ) ? sanitize_text_field( wp_unslash( $_POST['usm_notes_reminder_date'] ) ) : '';
+
+	if ( '' === $raw_date ) {
+		usm_notes_set_admin_error( 'Поле "Дата напоминания" обязательно для заполнения.' );
+		delete_post_meta( $post_id, '_usm_notes_reminder_date' );
+		return;
+	}
+
+	if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $raw_date ) ) {
+		usm_notes_set_admin_error( 'Некорректный формат даты. Используйте YYYY-MM-DD.' );
+		return;
+	}
+
+	$today = current_time( 'Y-m-d' );
+	if ( $raw_date < $today ) {
+		usm_notes_set_admin_error( 'Дата напоминания не может быть в прошлом.' );
+		return;
+	}
+
+	update_post_meta( $post_id, '_usm_notes_reminder_date', $raw_date );
+}
+
+/**
+ * Сохраняет сообщение об ошибке для текущего пользователя.
+ *
+ * @param string $message Текст ошибки.
+ * @return void
+ */
+function usm_notes_set_admin_error( $message ) {
+	$user_id = get_current_user_id();
+	if ( $user_id ) {
+		set_transient( 'usm_notes_reminder_error_' . $user_id, $message, 60 );
+	}
+}
+
+/**
+ * Показывает admin notice с ошибкой в админке.
+ *
+ * @return void
+ */
+function usm_notes_show_admin_error_notice() {
+	if ( ! is_admin() ) {
+		return;
+	}
+
+	$screen = get_current_screen();
+	if ( ! $screen || 'notes' !== $screen->post_type ) {
+		return;
+	}
+
+	$user_id = get_current_user_id();
+	if ( ! $user_id ) {
+		return;
+	}
+
+	$key     = 'usm_notes_reminder_error_' . $user_id;
+	$message = get_transient( $key );
+
+	if ( ! $message ) {
+		return;
+	}
+
+	delete_transient( $key );
+	echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $message ) . '</p></div>';
+}
+
+/**
+ * Добавляет колонку даты напоминания в список заметок.
+ *
+ * @param array $columns Колонки списка.
+ * @return array
+ */
+function usm_notes_add_reminder_date_column( $columns ) {
+	$columns['usm_notes_reminder_date'] = 'Дата напоминания';
+	return $columns;
+}
+
+/**
+ * Выводит значение даты в колонке списка заметок.
+ *
+ * @param string $column  Ключ колонки.
+ * @param int    $post_id ID записи.
+ * @return void
+ */
+function usm_notes_render_reminder_date_column( $column, $post_id ) {
+	if ( 'usm_notes_reminder_date' !== $column ) {
+		return;
+	}
+
+	$value = get_post_meta( $post_id, '_usm_notes_reminder_date', true );
+	echo $value ? esc_html( $value ) : '—';
+}
+
 // Регистрирует CPT и таксономию.
 add_action( 'init', 'usm_notes_register_cpt' );
 add_action( 'init', 'usm_notes_register_priority_taxonomy' );
 add_action( 'init', 'usm_notes_maybe_seed_priority_terms', 20 );
+
+// Метабокс, сохранение и вывод даты напоминания.
+add_action( 'add_meta_boxes', 'usm_notes_add_reminder_date_meta_box' );
+add_action( 'save_post', 'usm_notes_save_reminder_date_meta', 10, 2 );
+add_action( 'admin_notices', 'usm_notes_show_admin_error_notice' );
+add_filter( 'manage_notes_posts_columns', 'usm_notes_add_reminder_date_column' );
+add_action( 'manage_notes_posts_custom_column', 'usm_notes_render_reminder_date_column', 10, 2 );
