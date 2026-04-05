@@ -8,6 +8,7 @@
 - lab02: [mamaliga-artur_cms_lab02.docx](docs/mamaliga-artur_cms_lab02.docx)
 - lab03: [mamaliga-artur_cms_lab03.md](docs/mamaliga-artur_cms_lab03.md)
 - lab04: [mamaliga-artur_cms_lab04.md](docs/mamaliga-artur_cms_lab04.md)
+- lab05: [mamaliga-artur_cms_lab05.md](docs/mamaliga-artur_cms_lab05.md)
 
 ## Структура репозитория
 
